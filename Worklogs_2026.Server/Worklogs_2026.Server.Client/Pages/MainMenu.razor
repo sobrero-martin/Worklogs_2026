@@ -1,0 +1,169 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Authorization
+@using Worklogs_2026.Servicio.HttpServices
+@using Worklogs_2026.Shared.DTO
+@using Worklogs_2026.Server.Client.Shared
+@inject IHttpService http
+@inject HttpClient httpClient
+@inject NavigationManager navHttp
+@attribute [Authorize]
+
+<PageTitle>Main Menu</PageTitle>
+
+<h1 style="color:#DFD0B8">Main Menu</h1>
+
+@if(uploadedFiles != null)
+{
+    @foreach (var file in uploadedFiles)
+    {
+        <FileReport FileId="@file.FileId" FileName="@file.FileName" UploadDate="@file.UploadDate" OnSelect="OpenReports"></FileReport>
+    }
+}
+<div class="position-fixed bottom-0 end-0 m-5">
+    <AuthorizeView>
+        <Authorized>
+            <button class="btn fw-bold" style="background-color:#222831; color:#DFD0B8" @onclick=TogglePopUp>Upload File</button>
+        </Authorized>
+    </AuthorizeView>
+   
+    <button class="btn fw-bold" style="background-color:#222831; color:#DFD0B8" @onclick=Sync>Sync Files</button>
+</div>
+@if (popUpVisible)
+{
+    <div class="position-fixed top-50 start-50 translate-middle bg-transparent border rounded p-3 shadow border-3" style="border-color:#222831 !important;">
+        <p class="p-3 fw-bold" style="color:#DFD0B8">Select a file to upload</p>
+        <button class="btn border border-danger text-danger border-3 fw-bold position-fixed pe-1 ps-1 pb-0 pt-0 top-0 end-0" style="background-color:#222831" @onclick=TogglePopUp>X</button>
+        <InputFile @ref="fileInput" OnChange="HandleFileSelected"/>
+        <button class="btn fw-bold" style="background-color:#222831; color:#DFD0B8" @onclick="UploadFile">Upload</button>
+    </div>
+}
+
+@if (errorPopupVisible)
+{
+    <div class="position-fixed top-50 start-50 translate-middle border border-danger rounded p-3 shadow border-3" style="background-color:#222831">
+        <p class="p-3 text-danger fw-bold">@errorText</p>
+        <button class="btn btn-light border border-danger text-danger border-3 fw-bold position-fixed pe-1 ps-1 pb-0 pt-0 top-0 end-0" style="background-color:#222831" @onclick=" ()=> errorPopupVisible = false">X</button>
+    </div>
+}
+
+
+@code {
+    private List<UploadedFilesListDTO>? uploadedFiles;
+    private bool popUpVisible = false;
+    private bool errorPopupVisible = false;
+    private string errorText = "An error occurred while uploading the file.";
+    private InputFile? fileInput;
+    private IBrowserFile? selectedFile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await httpClient.PostAsync("api/uploadedfile/sync", null);
+        if (response.IsSuccessStatusCode)
+        {
+            var httpResp = await http.Get<List<UploadedFilesListDTO>>("api/uploadedfile/list");
+            if (!httpResp.Error && httpResp.Response != null)
+            {
+                uploadedFiles = httpResp.Response;
+            }
+        }
+        else
+        {
+            errorPopupVisible = true;
+            var errorBody = await response.Content.ReadAsStringAsync();
+            errorText = $"{errorBody}: {response.StatusCode}";
+        }
+
+    }
+
+    private void TogglePopUp()
+    {
+        popUpVisible = !popUpVisible;
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+    }
+
+    private async Task UploadFile()
+    {
+        if (selectedFile == null)
+        {
+            errorPopupVisible = true;
+            errorText = "No file selected.";
+            return;
+        }
+
+        var allowedExtensions = new[] { ".xls", ".xlsx" };
+        var fileExtension = Path.GetExtension(selectedFile.Name).ToLower();
+
+        if (!allowedExtensions.Contains(fileExtension))
+        {
+            errorPopupVisible = true;
+            errorText = "Invalid file type. Please upload an Excel file (.xls or .xlsx).";
+            return;
+        }
+
+        var content = new MultipartFormDataContent();
+        var stream = selectedFile.OpenReadStream(maxAllowedSize: 10_000_000);
+        content.Add(new StreamContent(stream), "file", selectedFile.Name);
+
+        /*
+        var httpResp = await http.Post<IBrowserFile, int>("api/uploadedfile/file", selectedFile);
+
+        if(!httpResp.Error)
+        {
+            var listResp = await http.Get<List<UploadedFilesListDTO>>("api/uploadedfile/list");
+            if(!listResp.Error && listResp.Response != null)
+            {
+                uploadedFiles = listResp.Response;
+                }
+            }
+        else
+        {
+            errorPopupVisible = true;
+            errorText = httpResp.GetError();
+            }*/
+
+        var response = await httpClient.PostAsync("api/uploadedfile/file", content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var httpResp = await http.Get<List<UploadedFilesListDTO>>("api/uploadedfile/list");
+            if (!httpResp.Error && httpResp.Response != null)
+            {
+                uploadedFiles = httpResp.Response;
+            }
+        }
+        else
+        {
+            errorPopupVisible = true;
+            errorText = $"Error uploading file: {response.StatusCode}";
+        }
+
+    }
+
+    private async Task Sync()
+    {
+        var response = await httpClient.PostAsync("api/uploadedfile/sync", null);
+        if (response.IsSuccessStatusCode)
+        {
+            var httpResp = await http.Get<List<UploadedFilesListDTO>>("api/uploadedfile/list");
+            if (!httpResp.Error && httpResp.Response != null)
+            {
+                uploadedFiles = httpResp.Response;
+            }
+        }
+        else
+        {
+            errorPopupVisible = true;
+            var errorBody = await response.Content.ReadAsStringAsync();
+            errorText = $"{errorBody}: {response.StatusCode}";
+        }
+    }
+
+    private void  OpenReports(int fileId)
+    {
+        navHttp.NavigateTo($"/reports/{fileId}");
+    }
+}

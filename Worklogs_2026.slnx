@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Worklogs_2026.BD/Worklogs_2026.BD.csproj" />
+  <Project Path="Worklogs_2026.Repositorio/Worklogs_2026.Repositorio.csproj" />
+  <Project Path="Worklogs_2026.Server/Worklogs_2026.Server.Client/Worklogs_2026.Server.Client.csproj" />
+  <Project Path="Worklogs_2026.Server/Worklogs_2026.Server/Worklogs_2026.Server.csproj" />
+  <Project Path="Worklogs_2026.Servicio/Worklogs_2026.Servicio.csproj" />
+  <Project Path="Worklogs_2026.Shared/Worklogs_2026.Shared.csproj" />
+</Solution>

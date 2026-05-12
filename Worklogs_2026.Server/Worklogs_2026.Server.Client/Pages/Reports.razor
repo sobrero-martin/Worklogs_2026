@@ -1,0 +1,35 @@
+﻿@page "/reports/{uploadedFileId:int}"
+@using Microsoft.AspNetCore.Authorization
+@using Worklogs_2026.Servicio.HttpServices
+@using Worklogs_2026.Shared.DTO
+@inject IHttpService http
+@attribute [Authorize]
+
+<PageTitle>Reports</PageTitle>
+
+<h3 style="color:#DFD0B8">Reports</h3>
+
+<p style="color:#DFD0B8"  class="fw-bold">Employee - Date Worked - Time Worked - Activity</p><br />
+
+@if(workLogs != null)
+{
+    @foreach (var log in workLogs)
+    {
+        <p style="color:#DFD0B8">@log.EmployeeName - @log.DateWorked - @log.TimeWorked - @log.Activity</p><br />
+    }
+}
+
+
+@code {
+    [Parameter] public int uploadedFileId { get; set; }
+    private List<WorkLogDTO>? workLogs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var httpResp = await http.Get<List<WorkLogDTO>>($"api/worklogs/list/{uploadedFileId}");
+        if(!httpResp.Error && httpResp.Response != null)
+        {
+            workLogs = httpResp.Response;
+        }
+    }
+}
