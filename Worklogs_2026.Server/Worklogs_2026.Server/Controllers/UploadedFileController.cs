@@ -1,9 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Supabase.Storage;
 using Worklogs_2026.BD.Data.Entities;
 using Worklogs_2026.Repositorio.Repository;
 using Worklogs_2026.Repositorio.Repository.Supabase;
 using Worklogs_2026.Servicio;
+using Worklogs_2026.Shared.Constants;
 using Worklogs_2026.Shared.DTO;
 
 namespace Worklogs_2026.Server.Controllers
@@ -14,15 +17,22 @@ namespace Worklogs_2026.Server.Controllers
     {
         private readonly IUploadedFileRepository repository;
         private readonly IWorkLogRepository workLogRepository;
+        private readonly IOutputCacheStore outputCacheStore;
 
-        public UploadedFileController(IUploadedFileRepository repository, IWorkLogRepository workLogRepository)
+        private const string cacheKey = "UploadedFileCache";
+
+
+        public UploadedFileController(IUploadedFileRepository repository, IWorkLogRepository workLogRepository, IOutputCacheStore outputCacheStore)
         {
             this.repository = repository;
             this.workLogRepository = workLogRepository;
+            this.outputCacheStore = outputCacheStore;
         }
 
 
-        [HttpGet("list")] 
+        [HttpGet("list")]
+        [AllowAnonymous]
+        [OutputCache(Tags = new[] { cacheKey })]
         public async Task<ActionResult<List<UploadedFilesListDTO>>> GetList()
         {
             var list = await repository.GetList();
@@ -34,6 +44,8 @@ namespace Worklogs_2026.Server.Controllers
             {
                 return NotFound("No existing records on list.");
             }
+
+            Response.Headers["Cache-Control"] = $"public, max-age={GlobalConstants.CacheDurationInSeconds}";
             return Ok(list);
         }   
 
@@ -77,6 +89,8 @@ namespace Worklogs_2026.Server.Controllers
             await repository.Post(uploadedFile);
 
             await workLogRepository.GetWorklogsExcel(uploadedFile.Id, publicUrl);
+
+            await outputCacheStore.EvictByTagAsync(cacheKey, default);
 
             return Ok(uploadedFile.Id);
 

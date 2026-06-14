@@ -7,8 +7,17 @@ using Worklogs_2026.Server.Client.Pages;
 using Worklogs_2026.Server.Components;
 using Worklogs_2026.Server.Components.Account;
 using Worklogs_2026.Servicio.HttpServices;
+using Worklogs_2026.Shared.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+var cacheDuration = GlobalConstants.CacheDurationInSeconds;
+builder.Services.AddOutputCache(opciones =>
+{
+    opciones.DefaultExpirationTimeSpan = TimeSpan.FromSeconds(cacheDuration);
+}
+);
 
 builder.Services.AddScoped(sp =>
     new HttpClient { BaseAddress = new Uri("https://localhost:7078") });
@@ -119,6 +128,7 @@ app.MapRazorComponents<App>()
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
 
+app.UseOutputCache();
 app.MapControllers();
 
 app.Run();

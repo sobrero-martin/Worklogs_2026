@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Worklogs_2026.BD.Data.Entities;
 using Worklogs_2026.Repositorio.Repository;
+using Worklogs_2026.Shared.Constants;
 using Worklogs_2026.Shared.DTO;
 
 namespace Worklogs_2026.Server.Controllers
@@ -10,13 +13,20 @@ namespace Worklogs_2026.Server.Controllers
     public class WorkLogController : ControllerBase
     {
         private readonly IWorkLogRepository repository;
+        private readonly IOutputCacheStore outputCacheStore;
 
-        public WorkLogController(IWorkLogRepository repository)
+        private const string cacheKey = "WorklogsCache";
+
+        public WorkLogController(IWorkLogRepository repository,
+                                 IOutputCacheStore outputCacheStore)
         {
             this.repository = repository;
+            this.outputCacheStore = outputCacheStore;
         }
 
         [HttpGet("list/{uploadedFileID:int}")]
+        [AllowAnonymous]
+        [OutputCache(Tags = new[] { cacheKey })]
         public async Task<ActionResult<List<UploadedFilesListDTO>>> GetList(int uploadedFileID)
         {
             var list = await repository.GetList(uploadedFileID);
@@ -28,6 +38,8 @@ namespace Worklogs_2026.Server.Controllers
             {
                 return NotFound("No existing records on list.");
             }
+
+            Response.Headers["Cache-Control"] = $"public, max-age={GlobalConstants.CacheDurationInSeconds}";
             return Ok(list);
         }
 
